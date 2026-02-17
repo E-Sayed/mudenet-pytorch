@@ -170,7 +170,7 @@ None retained — all changes reverted via `git restore`.
 
 ## Experiment 4: Distillation Resolution Strategy — Downsample Teacher (A-009)
 
-**Date:** (planned — after screening baseline)
+**Date:** 2026-02-17
 **Hypothesis:** The current distillation upsamples the WRN50 target from 64×64 to 128×128 via bilinear interpolation, creating smooth/blurry training targets. The teacher learns to reproduce these blurry features, which propagates to the anomaly maps at inference. This hurts PRO specifically because PRO measures per-component boundary overlap, and blurred boundaries reduce overlap precision. The fact that P-AUROC (rank-based, boundary-insensitive) is near-closed (−0.5pp) while PRO retains a large gap (−6.3pp) is consistent with blur being the bottleneck.
 
 **What changes:**
@@ -186,23 +186,20 @@ None retained — all changes reverted via `git restore`.
 - **I-AUROC** may improve if sharper features help image-level discrimination.
 - **P-AUROC** is already near-closed — minimal movement expected.
 
-### Results (pending)
+### Results — REJECTED
 
 | Seed | I-AUROC | P-AUROC | PRO  |
 |------|---------|---------|------|
-| 42   | —       | —       | —    |
-| 123  | —       | —       | —    |
-| 7    | —       | —       | —    |
-| **Mean** | — | — | — |
+| 42   | 92.4    | 96.6    | 79.4 |
+| 123  | 93.0    | 95.9    | 79.1 |
+| 7    | 89.7    | 95.7    | 78.9 |
+| **Mean** | **91.7** | **96.1** | **79.1** |
 | **Baseline mean** | 93.2 | 96.9 | 83.7 |
-| **Delta** | — | — | — |
+| **Delta** | **−1.5** | **−0.8** | **−4.6** |
 
-**Checkpoints:**
-- `runs/mvtec_ad/cable/screen_exp4/seed42/`
-- `runs/mvtec_ad/cable/screen_exp4/seed123/`
-- `runs/mvtec_ad/cable/screen_exp4/seed7/`
+**Outcome:** All three metrics regressed. PRO dropped by 4.6pp — a uniform regression across all seeds (85.2→79.4, 81.4→79.1, 84.5→78.9), well outside seed variance. The hypothesis was wrong: bilinear upsampling of the target was not the bottleneck for PRO. The teacher needs the full 128×128 supervision signal; constraining the loss to 64×64 removes useful fine-scale gradient information.
 
-If the result is negative, revert via `git restore` and document.
+**Action:** Code reverted via `git restore`. No changes retained.
 
 ---
 
@@ -216,8 +213,8 @@ If the result is negative, revert via `git restore` and document.
 | ~~2~~ | ~~Detach + remove final ReLU~~ | ~~A-014, A-012~~ | ~~Done (full run)~~ |
 | ~~3~~ | ~~Global z-score normalization~~ | ~~A-011~~ | ~~Rejected (full run)~~ |
 | ~~Baseline~~ | ~~Screening baseline (v2 config)~~ | ~~—~~ | ~~Done~~ |
-| **4b** | **Distillation at 64×64 (downsample teacher)** | **A-009** | **Next** |
-| 4a | MaxPool vs AvgPool in stem | A-002 | |
+| ~~4b~~ | ~~Distillation at 64×64 (downsample teacher)~~ | ~~A-009~~ | ~~Rejected~~ |
+| **4a** | **MaxPool vs AvgPool in stem** | **A-002** | **Next** |
 | 5 | Add BN to stem | A-005 | |
 | 6 | BN/ReLU placement in residual blocks | A-003 | |
 

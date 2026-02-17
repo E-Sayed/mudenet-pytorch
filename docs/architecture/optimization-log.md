@@ -127,6 +127,100 @@ None retained — all changes reverted via `git restore`.
 
 ---
 
-## Experiment 4: (next)
+## Screening Methodology
 
-**Planned:** Roadmap item 4 — MaxPool vs AvgPool in stem (A-002). Requires re-distillation.
+**Problem:** Full 500-epoch runs take ~90 minutes per seed (distillation + training). Testing each experiment with 3 seeds at full budget is prohibitively slow for iterative exploration.
+
+**Approach:** Two-phase optimization:
+
+- **Phase A — Screening (100 epochs, 3 seeds).** Each experiment is distilled for 100 epochs and trained for 100 epochs, across seeds 42, 123, and 7. Results are evaluated and compared as 3-run averages against the screening baseline. This reduces per-seed time to ~20 minutes (~1 hour per 3-seed experiment). Absolute metrics will be lower than 500-epoch results, but relative differences between experiments are preserved.
+- **Phase B — Full run (500 epochs, 3 seeds).** The best configuration from Phase A is trained at full budget to produce paper-comparable metrics.
+
+**Why 100 epochs:** With cable (~224 images, batch_size=8, ~28 steps/epoch), 100 epochs provides ~2,800 gradient steps. This is past the initial rapid-descent phase (epochs 1–30) and well into the steady-improvement phase, where relative ordering of configurations is predictive of final results. Shorter runs (e.g. 10 epochs / ~280 steps) risk being dominated by initialization effects.
+
+**Seeds:** 42, 123, 7 — used consistently across all screening experiments.
+
+---
+
+## Screening Baseline (100 epochs, 3 seeds)
+
+**Date:** 2026-02-17
+**Purpose:** Establish 100-epoch reference metrics for the current v2 configuration (detach + no final ReLU, per-sample z-score, sigma=4.0). All subsequent screening experiments are compared against these 3-run averages.
+
+**Config:** v2 codebase (current `main`), `configs/cable_screen.yaml`, 100-epoch distillation + 100-epoch training per seed.
+
+| Seed | I-AUROC | P-AUROC | PRO  |
+|------|---------|---------|------|
+| 42   | 94.5    | 97.7    | 85.2 |
+| 123  | 92.8    | 96.6    | 81.4 |
+| 7    | 92.2    | 96.3    | 84.5 |
+| **Mean** | **93.2** | **96.9** | **83.7** |
+
+**Observations:**
+- Seed 42 is consistently the strongest across all metrics. Our earlier single-seed 500-epoch results (seed 42: 95.5 / 97.8 / 84.3) came from the luckiest seed.
+- Seed variance is significant: I-AUROC spans 2.3pp (92.2–94.5), PRO spans 3.8pp (81.4–85.2). This confirms that single-seed comparisons can be misleading.
+- 100-epoch seed 42 (94.5 / 97.7 / 85.2) is close to 500-epoch seed 42 (95.5 / 97.8 / 84.3), validating 100 epochs as a screening proxy. PRO is slightly higher at 100 epochs, suggesting possible minor overfitting at longer training.
+
+**Checkpoints:**
+- `runs/mvtec_ad/cable/screen_baseline/seed42/`
+- `runs/mvtec_ad/cable/screen_baseline/seed123/`
+- `runs/mvtec_ad/cable/screen_baseline/seed7/`
+
+---
+
+## Experiment 4: Distillation Resolution Strategy — Downsample Teacher (A-009)
+
+**Date:** (planned — after screening baseline)
+**Hypothesis:** The current distillation upsamples the WRN50 target from 64×64 to 128×128 via bilinear interpolation, creating smooth/blurry training targets. The teacher learns to reproduce these blurry features, which propagates to the anomaly maps at inference. This hurts PRO specifically because PRO measures per-component boundary overlap, and blurred boundaries reduce overlap precision. The fact that P-AUROC (rank-based, boundary-insensitive) is near-closed (−0.5pp) while PRO retains a large gap (−6.3pp) is consistent with blur being the bottleneck.
+
+**What changes:**
+- `src/mudenet/training/distillation.py`: Instead of upsampling the target to 128×128, downsample each teacher map from 128×128 to 64×64 via `F.avg_pool2d(kernel_size=2)` before the loss. The teacher architecture and its 128×128 inference output are unchanged.
+
+**Re-distillation required:** Yes (distillation loss computation changes)
+**Retraining required:** Yes (different distilled teacher)
+**Screening protocol:** 100-epoch distillation + 100-epoch training × 3 seeds. Compare 3-run averages to screening baseline.
+
+### Expected impact
+
+- **PRO** is the primary target — sharper distillation targets should produce sharper teacher embeddings, leading to sharper anomaly maps and better boundary overlap.
+- **I-AUROC** may improve if sharper features help image-level discrimination.
+- **P-AUROC** is already near-closed — minimal movement expected.
+
+### Results (pending)
+
+| Seed | I-AUROC | P-AUROC | PRO  |
+|------|---------|---------|------|
+| 42   | —       | —       | —    |
+| 123  | —       | —       | —    |
+| 7    | —       | —       | —    |
+| **Mean** | — | — | — |
+| **Baseline mean** | 93.2 | 96.9 | 83.7 |
+| **Delta** | — | — | — |
+
+**Checkpoints:**
+- `runs/mvtec_ad/cable/screen_exp4/seed42/`
+- `runs/mvtec_ad/cable/screen_exp4/seed123/`
+- `runs/mvtec_ad/cable/screen_exp4/seed7/`
+
+If the result is negative, revert via `git restore` and document.
+
+---
+
+## Optimization Roadmap (revised)
+
+### Phase A — Screening (100 epochs × 3 seeds)
+
+| Priority | Change | Assumption ID | Status |
+|----------|--------|---------------|--------|
+| ~~1~~ | ~~Sigma tuning~~ | ~~A-016~~ | ~~Done (full run)~~ |
+| ~~2~~ | ~~Detach + remove final ReLU~~ | ~~A-014, A-012~~ | ~~Done (full run)~~ |
+| ~~3~~ | ~~Global z-score normalization~~ | ~~A-011~~ | ~~Rejected (full run)~~ |
+| ~~Baseline~~ | ~~Screening baseline (v2 config)~~ | ~~—~~ | ~~Done~~ |
+| **4b** | **Distillation at 64×64 (downsample teacher)** | **A-009** | **Next** |
+| 4a | MaxPool vs AvgPool in stem | A-002 | |
+| 5 | Add BN to stem | A-005 | |
+| 6 | BN/ReLU placement in residual blocks | A-003 | |
+
+### Phase B — Full run (500 epochs × 3 seeds)
+
+Best configuration from Phase A → full training → paper-comparable metrics.

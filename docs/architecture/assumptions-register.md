@@ -106,14 +106,16 @@
 ### A-009: Distillation spatial resolution mismatch (64x64 vs 128x128)
 
 - **Issue:** The distillation target E (from WideResNet50 layer1) is at 64×64 spatial resolution. The teacher network's embedding maps are at 128×128. Equation 16 (distillation loss) compares them, so they must match spatially.
-- **Chose:** Handled in the distillation training loop. The feature extractor outputs at its natural 64×64 resolution; the teacher outputs at 128×128. Neither module bakes in a resolution assumption.
-- **Why:** The paper doesn't explicitly address this gap. The reconciliation (upsample or downsample) is a training-loop concern, not a model-definition concern. Keeping both modules at their natural resolutions preserves flexibility.
-- **Resolution:** Upsample E from 64×64 to 128×128 (bilinear) in the distillation loop. Standard practice in knowledge distillation with resolution mismatches.
+- **Chose:** Upsample E from 64×64 to 128×128 (bilinear) in the distillation loop. The feature extractor outputs at its natural 64×64 resolution; the teacher outputs at 128×128. Neither module bakes in a resolution assumption.
+- **Why:** The paper doesn't explicitly address this gap. The reconciliation (upsample or downsample) is a training-loop concern, not a model-definition concern. Bilinear upsampling is standard practice in knowledge distillation with resolution mismatches.
+- **Concern:** Bilinear upsampling fabricates spatial information that doesn't exist in the WRN50 features. The teacher learns to reproduce smooth, interpolated targets rather than sharp features. This may directly hurt PRO (which measures per-component boundary overlap) — the largest remaining metric gap (−6.3pp). P-AUROC (rank-based, less boundary-sensitive) is near-closed at −0.5pp, which is consistent with blur being the bottleneck.
+- **Planned experiment (Experiment 4):** Reverse the resolution strategy — downsample teacher maps from 128×128 to 64×64 via `avg_pool2d(kernel_size=2)` for the distillation loss. The teacher architecture and inference-time output (128×128) are unchanged. Only the resolution at which the distillation loss is computed changes. The teacher learns features whose 2×2-pooled representation matches WRN50, letting sub-pixel structure emerge naturally from the residual blocks.
 - **Alternatives:**
-  - Downsample teacher output from 128×128 to 64×64 (loses spatial detail in the trained teacher)
-  - Modify the teacher stem to reduce by 4× instead of 2× during distillation (changes the architecture)
-- **How to detect if wrong:** Distillation loss not converging, or poor downstream metrics despite converged distillation.
-- **Status:** Open
+  - Current approach: upsample target from 64×64 to 128×128 (bilinear) — produces blurry training signal
+  - **Downsample teacher from 128×128 to 64×64 (avg_pool2d)** — sharp targets, unconstrained fine-scale behavior (to be tested)
+  - Modify the teacher stem to reduce by 4× instead of 2× during distillation (changes the architecture — not planned)
+- **How to detect if wrong:** Compare PRO specifically — if downsampling teacher improves boundary precision, this confirms bilinear upsampling was introducing blur. If neutral or negative, the blur was not the bottleneck.
+- **Status:** Open → **Revisit** (Experiment 4 planned)
 
 ---
 

@@ -1,0 +1,48 @@
+# MuDeNet — MVTec AD Cable Configuration (Screening)
+# 100-epoch screening runs for fast ablation comparisons.
+# Use configs/cable.yaml for full 500-epoch paper-comparable runs.
+
+model:
+  num_channels: 128
+  latent_dim: 32
+  num_levels: 3
+  internal_channels: 64
+  block_depths: [1, 2, 2]
+  kernel_sizes: [3, 3, 5]
+  image_size: 256
+
+training:
+  num_epochs: 100
+  batch_size: 8
+  learning_rate: 0.001
+  optimizer: adam
+  seed: 42
+  deterministic: true
+  mixed_precision: false
+  num_workers: 4
+
+distillation:
+  backbone: wide_resnet50_2
+  num_epochs: 100
+  learning_rate: 0.001
+  batch_size: 8
+
+data:
+  dataset_type: mvtec_ad
+  data_root: data/mvtec_ad
+  category: cable
+  image_size: 256
+  augmentations:
+    horizontal_flip: true
+    vertical_flip: true
+    rotation: false
+    color_jitter: false
+
+inference:
+  normalization: min_max
+  validation_ratio: 0.1
+  smoothing_sigma: 4.0
+
+device: cuda
+output_dir: runs/mvtec_ad/cable
+tensorboard: false

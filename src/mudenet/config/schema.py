@@ -197,10 +197,15 @@ class InferenceConfig:
         normalization: Score normalization method. Default "min_max".
         validation_ratio: Fraction of nominal training data held out for
             computing normalization statistics. Default 0.1.
+        smoothing_sigma: Gaussian smoothing sigma applied to the anomaly map
+            after upsampling.  Reduces pixel-level noise and improves both
+            image-level and region-level metrics.  Set to 0.0 to disable.
+            Default 4.0.
     """
 
     normalization: str = "min_max"
     validation_ratio: float = 0.1
+    smoothing_sigma: float = 4.0
 
     def __post_init__(self) -> None:
         valid_norms = {"min_max", "z_score", "rz_score", "none"}
@@ -211,6 +216,10 @@ class InferenceConfig:
         if not 0.0 < self.validation_ratio < 1.0:
             raise ValueError(
                 f"validation_ratio must be in (0, 1), got {self.validation_ratio}"
+            )
+        if self.smoothing_sigma < 0.0:
+            raise ValueError(
+                f"smoothing_sigma must be >= 0.0, got {self.smoothing_sigma}"
             )
 
 

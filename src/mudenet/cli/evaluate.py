@@ -55,6 +55,12 @@ def add_evaluate_parser(subparsers: argparse._SubParsersAction) -> None:  # type
         help="Path to end-to-end training checkpoint (end_to_end.pt)",
     )
     parser.add_argument(
+        "--smoothing-sigma",
+        type=float,
+        default=None,
+        help="Gaussian smoothing sigma (overrides config; 0 = disabled)",
+    )
+    parser.add_argument(
         "--visualize",
         action="store_true",
         default=False,
@@ -163,6 +169,10 @@ def run_evaluate(args: argparse.Namespace) -> None:
 
         config = load_config_from_subcommand(args, seed_target="training.seed")
 
+        # CLI override for smoothing sigma (quick experimentation)
+        if args.smoothing_sigma is not None:
+            config.inference.smoothing_sigma = args.smoothing_sigma
+
         logger.info(
             "Starting evaluation — dataset: %s, category: %s, device: %s",
             config.data.dataset_type,
@@ -186,6 +196,7 @@ def run_evaluate(args: argparse.Namespace) -> None:
         from mudenet.inference.pipeline import (
             compute_image_score,
             compute_normalization_stats,
+            gaussian_smooth,
             score_batch,
         )
         from mudenet.utils.seed import set_seed
@@ -266,6 +277,14 @@ def run_evaluate(args: argparse.Namespace) -> None:
                     mode="bilinear",
                     align_corners=False,
                 ).squeeze(1)  # (B, image_size, image_size)
+
+                # Gaussian smoothing reduces noise, improving image-level
+                # scores (max less sensitive to single-pixel spikes) and
+                # region-level metrics (PRO connected-component analysis).
+                if config.inference.smoothing_sigma > 0.0:
+                    anomaly_map = gaussian_smooth(
+                        anomaly_map, sigma=config.inference.smoothing_sigma,
+                    )
 
                 image_scores = compute_image_score(anomaly_map)  # (B,)
 

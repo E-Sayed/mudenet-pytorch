@@ -321,6 +321,50 @@ def compute_image_score(anomaly_map: Tensor) -> Tensor:
     return anomaly_map.flatten(start_dim=1).max(dim=1).values
 
 
+def gaussian_smooth(anomaly_map: Tensor, sigma: float) -> Tensor:
+    """Apply Gaussian smoothing to anomaly maps.
+
+    Reduces pixel-level noise in the anomaly map, which improves
+    image-level scoring (max is less sensitive to single-pixel spikes)
+    and region-level metrics (PRO connected-component analysis).
+
+    The kernel size is chosen to cover 4 standard deviations on each
+    side, ensuring negligible truncation error.
+
+    Args:
+        anomaly_map: Pixel-level score map (B, H, W).
+        sigma: Gaussian standard deviation in pixels.  Must be > 0.
+            Typical value: 4.0 for 256x256 images.
+
+    Returns:
+        Smoothed anomaly map (B, H, W), same shape as input.
+
+    Raises:
+        ValueError: If sigma is not positive.
+    """
+    if sigma <= 0.0:
+        raise ValueError(f"sigma must be positive, got {sigma}")
+
+    kernel_size = 2 * int(4.0 * sigma + 0.5) + 1
+    padding = kernel_size // 2
+
+    # Build 1-D Gaussian kernel
+    coords = torch.arange(kernel_size, dtype=torch.float32, device=anomaly_map.device)
+    coords -= kernel_size // 2
+    gauss_1d = torch.exp(-0.5 * (coords / sigma) ** 2)
+    gauss_1d /= gauss_1d.sum()
+
+    # Outer product → 2-D kernel, shaped (1, 1, K, K) for depthwise conv
+    gauss_2d = gauss_1d[:, None] * gauss_1d[None, :]
+    kernel = gauss_2d.unsqueeze(0).unsqueeze(0)  # (1, 1, K, K)
+
+    # Conv2d expects (B, C, H, W) — add/remove channel dim
+    x = anomaly_map.unsqueeze(1)  # (B, 1, H, W)
+    x = torch.nn.functional.pad(x, [padding] * 4, mode="reflect")
+    x = torch.nn.functional.conv2d(x, kernel)
+    return x.squeeze(1)  # (B, H, W)
+
+
 def _min_max_normalize(
     score: Tensor,
     min_val: float,

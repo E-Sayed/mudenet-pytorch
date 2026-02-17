@@ -12,6 +12,7 @@ from mudenet.inference.pipeline import (
     _min_max_normalize,
     compute_image_score,
     compute_normalization_stats,
+    gaussian_smooth,
     score_batch,
 )
 from mudenet.models.autoencoder import Autoencoder
@@ -351,3 +352,64 @@ class TestComputeImageScore:
         anomaly_map[0, 2, 2] = -0.5
         result = compute_image_score(anomaly_map)
         assert result[0].item() == pytest.approx(-0.5)
+
+
+# ---------------------------------------------------------------------------
+# gaussian_smooth
+# ---------------------------------------------------------------------------
+
+
+class TestGaussianSmooth:
+    """Tests for gaussian_smooth."""
+
+    def test_output_shape(self) -> None:
+        """Output shape matches input shape."""
+        anomaly_map = torch.randn(2, 32, 32)
+        result = gaussian_smooth(anomaly_map, sigma=4.0)
+        assert result.shape == anomaly_map.shape
+
+    def test_preserves_constant_map(self) -> None:
+        """Smoothing a constant map returns the same constant."""
+        anomaly_map = torch.full((1, 64, 64), 5.0)
+        result = gaussian_smooth(anomaly_map, sigma=4.0)
+        assert torch.allclose(result, anomaly_map, atol=1e-5)
+
+    def test_reduces_spike(self) -> None:
+        """A single-pixel spike is reduced by smoothing."""
+        anomaly_map = torch.zeros(1, 64, 64)
+        anomaly_map[0, 32, 32] = 100.0
+        result = gaussian_smooth(anomaly_map, sigma=4.0)
+        # Peak should be reduced
+        assert result[0, 32, 32].item() < 100.0
+        # Energy should spread to neighbors
+        assert result[0, 31, 32].item() > 0.0
+
+    def test_non_negative_preserved(self) -> None:
+        """Non-negative input produces non-negative output."""
+        torch.manual_seed(0)
+        anomaly_map = torch.rand(2, 32, 32)  # [0, 1)
+        result = gaussian_smooth(anomaly_map, sigma=2.0)
+        assert (result >= -1e-6).all()
+
+    def test_zero_sigma_raises(self) -> None:
+        """sigma=0 raises ValueError."""
+        with pytest.raises(ValueError, match="positive"):
+            gaussian_smooth(torch.randn(1, 8, 8), sigma=0.0)
+
+    def test_negative_sigma_raises(self) -> None:
+        """Negative sigma raises ValueError."""
+        with pytest.raises(ValueError, match="positive"):
+            gaussian_smooth(torch.randn(1, 8, 8), sigma=-1.0)
+
+    def test_small_sigma_minimal_effect(self) -> None:
+        """Very small sigma has minimal smoothing effect."""
+        torch.manual_seed(42)
+        anomaly_map = torch.randn(1, 32, 32)
+        result = gaussian_smooth(anomaly_map, sigma=0.1)
+        assert torch.allclose(result, anomaly_map, atol=1e-3)
+
+    def test_large_map(self) -> None:
+        """Works on 256x256 maps (production size)."""
+        anomaly_map = torch.randn(4, 256, 256)
+        result = gaussian_smooth(anomaly_map, sigma=4.0)
+        assert result.shape == (4, 256, 256)

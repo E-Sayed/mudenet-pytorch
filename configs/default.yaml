@@ -1,0 +1,46 @@
+# MuDeNet — Default Configuration
+# See docs/architecture/overview.md for architecture details.
+
+model:
+  num_channels: 128        # C: embedding channel dimensionality
+  latent_dim: 32           # Z: autoencoder latent space dim
+  num_levels: 3            # L: number of embedding levels
+  internal_channels: 64    # Internal channels in teacher/student
+  block_depths: [1, 2, 2]  # Residual blocks per level
+  kernel_sizes: [3, 3, 5]  # Kernel size per level
+  image_size: 256          # Input image size (square)
+
+training:
+  num_epochs: 500
+  batch_size: 8
+  learning_rate: 0.001
+  optimizer: adam
+  seed: 42
+  deterministic: true
+  mixed_precision: false
+  num_workers: 4
+
+distillation:
+  backbone: wide_resnet50_2
+  num_epochs: 500
+  learning_rate: 0.001
+  batch_size: 8
+
+data:
+  dataset_type: mvtec_ad
+  data_root: data
+  category: bottle
+  image_size: 256
+  augmentations:
+    horizontal_flip: false
+    vertical_flip: false
+    rotation: false
+    color_jitter: false
+
+inference:
+  normalization: min_max
+  validation_ratio: 0.1
+
+device: cuda
+output_dir: runs
+tensorboard: false

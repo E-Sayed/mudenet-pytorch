@@ -1,0 +1,52 @@
+# MuDeNet — VisA Configuration
+# 12 categories. Per-category augmentations from paper Table A.18.
+#
+# Override category at CLI:
+#   mudenet train --config configs/visa.yaml --category candle
+
+model:
+  num_channels: 128
+  latent_dim: 32
+  num_levels: 3
+  internal_channels: 64
+  block_depths: [1, 2, 2]
+  kernel_sizes: [3, 3, 5]
+  image_size: 256
+
+training:
+  num_epochs: 500
+  batch_size: 8
+  learning_rate: 0.001
+  optimizer: adam
+  seed: 42
+  deterministic: true
+  mixed_precision: false
+  num_workers: 4
+
+distillation:
+  backbone: wide_resnet50_2
+  num_epochs: 500
+  learning_rate: 0.001
+  batch_size: 8
+
+data:
+  dataset_type: visa
+  data_root: data/visa
+  category: candle
+  image_size: 256
+  augmentations:
+    # Per-category:
+    # H+V+R: candle, capsules, chewinggum, fryum, macaroni1, macaroni2, pipe_fryum
+    # H+V:   cashew, pcb1, pcb2, pcb3, pcb4
+    horizontal_flip: true
+    vertical_flip: true
+    rotation: true
+    color_jitter: false
+
+inference:
+  normalization: min_max
+  validation_ratio: 0.1
+
+device: cuda
+output_dir: runs/visa
+tensorboard: false

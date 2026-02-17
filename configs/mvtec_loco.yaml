@@ -1,0 +1,53 @@
+# MuDeNet — MVTec LOCO Configuration
+# 5 categories. Per-category augmentations from paper Table A.17.
+#
+# Override category at CLI:
+#   mudenet train --config configs/mvtec_loco.yaml --category breakfast_box
+
+model:
+  num_channels: 128
+  latent_dim: 32
+  num_levels: 3
+  internal_channels: 64
+  block_depths: [1, 2, 2]
+  kernel_sizes: [3, 3, 5]
+  image_size: 256
+
+training:
+  num_epochs: 500
+  batch_size: 8
+  learning_rate: 0.001
+  optimizer: adam
+  seed: 42
+  deterministic: true
+  mixed_precision: false
+  num_workers: 4
+
+distillation:
+  backbone: wide_resnet50_2
+  num_epochs: 500
+  learning_rate: 0.001
+  batch_size: 8
+
+data:
+  dataset_type: mvtec_loco
+  data_root: data/mvtec_loco
+  category: breakfast_box
+  image_size: 256
+  augmentations:
+    # Per-category:
+    # H+V:     breakfast_box, juice_bottle
+    # H+V+R:   pushpin, screw_bag
+    # H+V+R+C: splicing_connector
+    horizontal_flip: true
+    vertical_flip: true
+    rotation: false
+    color_jitter: false
+
+inference:
+  normalization: min_max
+  validation_ratio: 0.1
+
+device: cuda
+output_dir: runs/mvtec_loco
+tensorboard: false

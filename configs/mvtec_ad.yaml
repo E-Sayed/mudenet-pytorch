@@ -1,0 +1,53 @@
+# MuDeNet — MVTec AD Configuration
+# 15 categories. Per-category augmentations from paper Table A.16.
+#
+# Override category at CLI:
+#   mudenet train --config configs/mvtec_ad.yaml --category bottle
+
+model:
+  num_channels: 128
+  latent_dim: 32
+  num_levels: 3
+  internal_channels: 64
+  block_depths: [1, 2, 2]
+  kernel_sizes: [3, 3, 5]
+  image_size: 256
+
+training:
+  num_epochs: 500
+  batch_size: 8
+  learning_rate: 0.001
+  optimizer: adam
+  seed: 42
+  deterministic: true
+  mixed_precision: false
+  num_workers: 4
+
+distillation:
+  backbone: wide_resnet50_2
+  num_epochs: 500
+  learning_rate: 0.001
+  batch_size: 8
+
+data:
+  dataset_type: mvtec_ad
+  data_root: data/mvtec_ad
+  category: bottle
+  image_size: 256
+  augmentations:
+    # Default: no augmentations. Override per-category as needed.
+    # H+V+R+C: bottle, carpet, grid, hazelnut, leather, screw, tile, wood, zipper
+    # H+V+R:   toothbrush, transistor
+    # H+V:     cable, capsule, metal_nut, pill
+    horizontal_flip: true
+    vertical_flip: true
+    rotation: true
+    color_jitter: true
+
+inference:
+  normalization: min_max
+  validation_ratio: 0.1
+
+device: cuda
+output_dir: runs/mvtec_ad
+tensorboard: false

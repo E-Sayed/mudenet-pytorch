@@ -152,7 +152,7 @@ def train_end_to_end(
             # Compute sub-losses
             loss_l1 = structural_loss(teacher_maps, student1_maps)     # Eq. 3
             loss_la = autoencoder_loss(teacher_maps, autoencoder_maps)  # Eq. 5
-            loss_l2 = logical_loss(autoencoder_maps, student2_maps)     # Eq. 7
+            loss_l2 = logical_loss([m.detach() for m in autoencoder_maps], student2_maps)  # Eq. 7
             total_loss = composite_loss(loss_l1, loss_la, loss_l2)      # Eq. 8
 
             # Backward pass

@@ -118,9 +118,8 @@ class Decoder(nn.Module):
             # C @ 32x32 -> C @ 64x64
             nn.ConvTranspose2d(c, c, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.ReLU(inplace=True),
-            # C @ 64x64 -> C @ 128x128
+            # C @ 64x64 -> C @ 128x128 (no ReLU — teacher targets can be negative)
             nn.ConvTranspose2d(c, c, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.ReLU(inplace=True),
         )
 
     def forward(self, latent: Tensor) -> Tensor:

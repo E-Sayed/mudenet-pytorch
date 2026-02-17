@@ -8,7 +8,7 @@ PyTorch implementation of **MuDeNet** — a teacher-student anomaly detection fr
 
 ---
 
-**Status: work in progress.** The full pipeline runs (distillation → training → inference → evaluation), but results don't match the paper yet — still optimizing.
+**Status: work in progress.** The full pipeline runs (distillation → training → inference → evaluation), but results don't match the paper yet — still optimizing. Progress is tracked in the [optimization log](docs/architecture/optimization-log.md), and architectural decisions made under uncertainty are recorded in the [assumptions register](docs/architecture/assumptions-register.md).
 
 ---
 

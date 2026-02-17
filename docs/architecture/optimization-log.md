@@ -89,6 +89,44 @@ Phase 2 delivered substantial gains. P-AUROC is near-closed. I-AUROC and PRO sti
 
 ---
 
-## Experiment 3: (next)
+## Experiment 3: Global Z-Score Normalization (Negative Result)
 
-**Planned:** Phase 3 from optimization roadmap — global z-score normalization (A-011). Requires re-distillation.
+**Date:** 2026-02-17
+**Hypothesis:** Per-sample per-channel z-score normalization washes out magnitude differences between images. Switching to global per-channel statistics (computed over the entire training set) would preserve relative activation differences, providing richer distillation targets and improving downstream metrics.
+
+**What changed:**
+- `FeatureExtractor`: added `compute_global_stats(dataloader, device)` — single pass over the training set to compute per-channel mean/std in float64, stored as registered buffers. `forward()` branches on whether global stats are available (backward-compatible).
+- `distill.py`: called `compute_global_stats` before `train_distillation`.
+- `distillation.py`: saved global stats in teacher checkpoint.
+
+**Re-distillation required:** Yes (distillation targets change)
+**Retraining required:** Yes (500 epochs each for distillation and training)
+
+### Results
+
+| Metric  | v2 Baseline | v3 (this exp) | Paper  | v2→v3 change | Remaining gap |
+|---------|-------------|---------------|--------|--------------|---------------|
+| I-AUROC | 95.5%       | 91.4%         | 98.9%  | −4.1 pp      | −7.5 pp       |
+| P-AUROC | 97.8%       | 97.3%         | 98.3%  | −0.5 pp      | −1.0 pp       |
+| PRO     | 84.3%       | 81.5%         | 90.6%  | −2.8 pp      | −9.1 pp       |
+
+### Analysis
+
+- All three metrics regressed. I-AUROC dropped below even the v1 baseline (91.0%).
+- Per-sample normalization was not the problem — it was actually helping by giving the teacher a consistent, well-scaled target for every image.
+- Global normalization introduced high variance in target norms across images. Images with channels that activate far from the dataset mean produced targets with large absolute values, making the distillation task harder and noisier.
+- The paper's "z-score based on ImageNet statistics" most likely means "z-score normalization of features from the ImageNet-pretrained backbone" — describing the features' origin, not the statistics' scope.
+
+### Conclusion
+
+**Negative result.** Global z-score normalization is strictly worse than per-sample normalization. Code changes reverted; per-sample normalization confirmed as correct. A-011 resolved.
+
+### Code changes
+
+None retained — all changes reverted via `git restore`.
+
+---
+
+## Experiment 4: (next)
+
+**Planned:** Roadmap item 4 — MaxPool vs AvgPool in stem (A-002). Requires re-distillation.

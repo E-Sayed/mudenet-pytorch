@@ -132,9 +132,8 @@
 - **Paper says:** "z-score based on ImageNet statistics" (Sec. 3.3)
 - **Chose:** Per-sample, per-channel normalization using batch statistics (mean/std computed over spatial dims H, W for each sample and channel independently).
 - **Why:** The paper's phrasing is ambiguous. It could mean (a) per-sample statistics from the extracted features, or (b) pre-computed global mean/std from ImageNet. Option (b) is impractical because the channel sampling (Eq. 15) selects a random subset of 128 channels from 1792, and these channels differ per seed — there are no standard "ImageNet statistics" for arbitrary channel subsets. Per-sample normalization is the simplest correct interpretation.
-- **Alternatives:** Pre-compute per-channel mean/std over the training set and use those as fixed statistics. This would require a preprocessing pass over the dataset before distillation.
-- **How to detect if wrong:** Distillation converges but downstream anomaly detection metrics are significantly below paper. Normalization scope is a likely factor.
-- **Status:** Open
+- **Tested alternative:** Global per-channel mean/std computed over the entire training set in a preprocessing pass. Result: all metrics regressed (I-AUROC −4.1pp, P-AUROC −0.5pp, PRO −2.8pp vs v2 baseline). Global normalization introduced high variance in target norms, making distillation harder. See optimization-log.md Experiment 3.
+- **Status:** Resolved — per-sample normalization confirmed correct (Experiment 3, negative result)
 
 ---
 

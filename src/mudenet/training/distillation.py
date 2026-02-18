@@ -37,6 +37,9 @@ def _upsample_target(
     Resolves A-009: feature extractor outputs at 64x64, teacher at 128x128.
     Bilinear interpolation is used for smooth upsampling.
 
+    E5.7 tested nearest-neighbor (Kronecker-product equivalent) but it
+    regressed PRO by -1.0pp and I-AUROC by -0.6pp. Bilinear is kept.
+
     Args:
         target: Distillation target (B, C, H1, W1) — e.g. (B, 128, 64, 64).
         spatial_size: Target spatial dimensions (H, W) — e.g. (128, 128).

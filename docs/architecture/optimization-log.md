@@ -289,7 +289,50 @@ None retained — reverted via `git restore`.
 
 ---
 
-## Optimization Roadmap (revised 2026-02-18, post E5.6)
+## Experiment 5.7: Distillation Target — Nearest-Neighbor Upsampling
+
+**Date:** 2026-02-18
+**Hypothesis:** The feature extractor outputs at 64×64 and is upsampled to 128×128 via bilinear interpolation for distillation. The paper describes feature fusion using the Kronecker product with an all-ones matrix — equivalent to nearest-neighbor upsampling. Bilinear fabricates smooth inter-pixel gradients that don't exist in the source 64×64 features; nearest-neighbor produces honest block-structured targets.
+
+**What changed:**
+- `src/mudenet/training/distillation.py` `_upsample_target()`: changed `mode="bilinear"` to `mode="nearest"` (removed `align_corners`)
+
+**Re-distillation required:** Yes (distillation target interpolation changes)
+**Retraining required:** Yes (different distilled teacher)
+**Screening protocol:** 100-epoch distillation + 100-epoch training × 3 seeds, using E5.5 augmentations + E5.4 cosine LR
+
+### Results — REVERTED (regression)
+
+| Seed | I-AUROC (E5.4) | I-AUROC (NN) | P-AUROC (E5.4) | P-AUROC (NN) | PRO (E5.4) | PRO (NN) |
+|------|----------------|--------------|----------------|---------------|------------|----------|
+| 42   | 94.6           | **95.6** (+1.0) | 97.5        | 97.3 (−0.2)   | 86.1       | 86.5 (+0.4) |
+| 123  | 95.0           | 94.5 (−0.5) | 97.3           | 97.5 (+0.2)   | 86.7       | 86.3 (−0.4) |
+| 7    | 95.1           | 92.8 (−2.3) | 97.1           | 97.0 (−0.1)   | 87.3       | 84.2 (−3.1) |
+| **Mean** | **94.9**   | 94.3 (−0.6) | **97.3**       | 97.3 (0.0)    | **86.7**   | 85.7 (−1.0) |
+
+### Analysis
+
+- **PRO** regressed by −1.0pp mean, with seed 7 dropping −3.1pp. The block-structured targets apparently make the distillation task harder — the teacher struggles to learn sharp 2×2 block discontinuities.
+- **I-AUROC** regressed by −0.6pp mean. Seed 42 improved (+1.0pp) but seed 7 collapsed (−2.3pp), similar to the E5.6 pattern of seed 7 being particularly sensitive.
+- **P-AUROC** flat (0.0pp mean change).
+- Seed variance increased: I-AUROC span 2.8pp (was 0.5pp), PRO span 2.3pp (was 1.2pp). NN upsampling makes training less stable.
+
+### Conclusion
+
+**Negative result.** Nearest-neighbor upsampling produces worse results than bilinear. The bilinear smoothing provides better learning targets for the teacher — smooth inter-pixel gradients act as a form of regularization that helps the teacher generalize. Code reverted to bilinear.
+
+### Code changes
+
+None retained — reverted to bilinear in `_upsample_target()`.
+
+**Checkpoints (for reference only — not used going forward):**
+- `runs/mvtec_ad/cable/e5.7_nn_upsample/seed42/`
+- `runs/mvtec_ad/cable/e5.7_nn_upsample/seed123/`
+- `runs/mvtec_ad/cable/e5.7_nn_upsample/seed7/`
+
+---
+
+## Optimization Roadmap (revised 2026-02-18, post E5.7)
 
 Full analysis and per-experiment specs: `docs/artifacts/exp5-findings.md`
 
@@ -305,6 +348,7 @@ Full analysis and per-experiment specs: `docs/artifacts/exp5-findings.md`
 | E5.2 | Bicubic anomaly map upsampling | — | Reverted — no effect (<0.1pp) |
 | E5.3 | Smoothing at embedding resolution | — | Reverted — no effect (<0.1pp) |
 | E5.6 | MaxPool vs AvgPool in stem | A-002 | Reverted — neutral (PRO −0.9pp, increased seed variance) |
+| E5.7 | Distillation target NN upsample | — | Reverted — regression (I-AUROC −0.6pp, PRO −1.0pp) |
 | E5.4 | Cosine LR schedule (end-to-end) | — | Marginal — I-AUROC +0.7pp, PRO flat; kept (low complexity) |
 
 ### Phase A — Screening (100 epochs × 3 seeds)
@@ -325,8 +369,8 @@ All three tested. Only E5.1 retained. See `docs/artifacts/exp5-findings.md` for 
 |----|--------|---------------|--------|
 | E5.5 | Fix cable augmentation (remove V-Flip, add Color Jitter) | A-017 | **Done — +2.5pp I-AUROC, +7.5pp PRO** |
 | E5.6 | MaxPool vs AvgPool in stem | A-002 | **Done — reverted (neutral, PRO −0.9pp)** |
-| E5.7 | Distillation target nearest-neighbor upsample | — | Pending |
-| E5.8 | Add BN to stem | A-005 | Pending |
+| E5.7 | Distillation target nearest-neighbor upsample | — | **Done — reverted (regression, PRO −1.0pp)** |
+| E5.8 | Add BN to stem | A-005 | Pending — next experiment |
 
 #### Execution order
 
@@ -334,8 +378,8 @@ All three tested. Only E5.1 retained. See `docs/artifacts/exp5-findings.md` for 
 2. ~~**E5.5**~~ — done; +2.5pp I-AUROC, +7.5pp PRO (new screening baseline)
 3. ~~**E5.6**~~ — done; neutral (PRO −0.9pp), reverted
 4. ~~**E5.4**~~ — done; marginal (+0.7pp I-AUROC, PRO flat), kept
-5. **E5.7** — NN upsample distillation target ← NEXT
-6. **E5.8** — stem BatchNorm (only if E5.7 inconclusive)
+5. ~~**E5.7**~~ — done; regression (I-AUROC −0.6pp, PRO −1.0pp), reverted
+6. **E5.8** — stem BatchNorm ← NEXT
 
 #### Deprioritized (not worth testing)
 

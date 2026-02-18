@@ -202,6 +202,22 @@
 
 ---
 
+### A-017: Cable augmentation mismatch with paper Table A.16
+
+- **Issue:** The cable config (`configs/cable.yaml`) comment says "Augmentations: H+V only (Table A.16)". But Table A.16 actually specifies H-Flip + Color Jitter for cable — NOT V-Flip.
+- **Current config:** `horizontal_flip: true, vertical_flip: true, rotation: false, color_jitter: false`
+- **Paper Table A.16:** `horizontal_flip: true, vertical_flip: false, rotation: false, color_jitter: true`
+- **Errors:**
+  1. **V-Flip is enabled but should be disabled.** Cables have a natural vertical orientation. Vertical flipping creates physically implausible training images.
+  2. **Color Jitter is disabled but should be enabled.** The paper applies random brightness, contrast, and saturation adjustments to cable. Cable anomalies include color-related defects.
+- **Color Jitter parameters:** Paper does not specify exact ranges. Code defaults: brightness=0.1, contrast=0.1, saturation=0.1.
+- **Expected impact:** I-AUROC +1–3pp, PRO +1–3pp (removing incorrect augmentation + adding correct one).
+- **How to detect if wrong:** Compare screening results with corrected vs current augmentation. ANY positive movement confirms the fix.
+- **Experiment:** E5.5 in `docs/artifacts/exp5-findings.md`
+- **Status:** Open — pending experiment
+
+---
+
 ## Future Entries
 
 New entries are added as more assumptions are identified during development.

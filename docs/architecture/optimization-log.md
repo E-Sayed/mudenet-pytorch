@@ -203,20 +203,59 @@ None retained — all changes reverted via `git restore`.
 
 ---
 
-## Optimization Roadmap (revised)
+## Optimization Roadmap (revised 2026-02-18, post Tier 1 experiments)
+
+Full analysis and per-experiment specs: `docs/artifacts/exp5-findings.md`
+
+### Completed experiments
+
+| # | Change | Assumption ID | Result |
+|---|--------|---------------|--------|
+| 1 | Sigma tuning | A-016 | Done — sigma=4.0 kept |
+| 2 | Detach + remove final ReLU | A-014, A-012 | Done — +4.5pp I-AUROC |
+| 3 | Global z-score normalization | A-011 | Rejected — all metrics regressed |
+| 4 | Distillation at 64×64 | A-009 | Rejected — PRO −4.6pp |
+| E5.1 | PRO num_thresholds 300→1000 | — | **Kept** — measurement correction (screening PRO 83.7→79.2) |
+| E5.2 | Bicubic anomaly map upsampling | — | Reverted — no effect (<0.1pp) |
+| E5.3 | Smoothing at embedding resolution | — | Reverted — no effect (<0.1pp) |
 
 ### Phase A — Screening (100 epochs × 3 seeds)
 
-| Priority | Change | Assumption ID | Status |
-|----------|--------|---------------|--------|
-| ~~1~~ | ~~Sigma tuning~~ | ~~A-016~~ | ~~Done (full run)~~ |
-| ~~2~~ | ~~Detach + remove final ReLU~~ | ~~A-014, A-012~~ | ~~Done (full run)~~ |
-| ~~3~~ | ~~Global z-score normalization~~ | ~~A-011~~ | ~~Rejected (full run)~~ |
-| ~~Baseline~~ | ~~Screening baseline (v2 config)~~ | ~~—~~ | ~~Done~~ |
-| ~~4b~~ | ~~Distillation at 64×64 (downsample teacher)~~ | ~~A-009~~ | ~~Rejected~~ |
-| **4a** | **MaxPool vs AvgPool in stem** | **A-002** | **Next** |
-| 5 | Add BN to stem | A-005 | |
-| 6 | BN/ReLU placement in residual blocks | A-003 | |
+#### Tier 1: Free tests — COMPLETE
+
+All three tested. Only E5.1 retained. See `docs/artifacts/exp5-findings.md` for full results.
+
+#### Tier 2: Retrain only (use existing distilled teacher)
+
+| ID | Change | Status |
+|----|--------|--------|
+| E5.4 | Cosine LR schedule (end-to-end only) | Pending |
+
+#### Tier 3: Full pipeline (re-distillation + retraining)
+
+| ID | Change | Assumption ID | Status |
+|----|--------|---------------|--------|
+| E5.5 | Fix cable augmentation (remove V-Flip, add Color Jitter) | A-017 | Pending |
+| E5.6 | MaxPool vs AvgPool in stem | A-002 | Pending |
+| E5.7 | Distillation target nearest-neighbor upsample | — | Pending |
+| E5.8 | Add BN to stem | A-005 | Pending |
+
+#### Execution order
+
+1. ~~**E5.1–E5.3 together**~~ — done; E5.1 kept, E5.2/E5.3 no effect
+2. **E5.5** — highest confidence (factual config error)
+3. **E5.6** — highest-impact architectural hypothesis
+4. **E5.4** — apply cosine LR to best config from above
+5. **E5.6+E5.7+E5.8 bundle** — only if E5.6 alone is inconclusive
+
+#### Deprioritized (not worth testing)
+
+| Change | Why |
+|--------|-----|
+| BN/ReLU placement in residual blocks (A-003) | <0.5pp expected; not worth re-distillation cost |
+| BN on 1x1 projections (A-004) | Risky — scoring relies on embedding magnitudes |
+| Separate optimizers for S1/A/S2 | No evidence of benefit |
+| Weight decay, gradient clipping, LR warmup | No evidence of training instability |
 
 ### Phase B — Full run (500 epochs × 3 seeds)
 

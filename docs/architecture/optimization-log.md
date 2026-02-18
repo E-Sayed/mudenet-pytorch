@@ -252,7 +252,44 @@ Config error confirmed and fixed. The augmentation fix closed 65% of the PRO gap
 
 ---
 
-## Optimization Roadmap (revised 2026-02-18, post E5.5)
+## Experiment 5.6: Stem MaxPool vs AvgPool (A-002)
+
+**Date:** 2026-02-18
+**Hypothesis:** MaxPool2d preserves edge and high-frequency information by selecting the strongest activation in each 2×2 block. AvgPool smooths. The remaining PRO gap (−3.9pp) combined with near-closed P-AUROC (−0.9pp) is consistent with a spatial precision problem — MaxPool could sharpen feature representations and improve boundary detection.
+
+**What changed:**
+- `src/mudenet/models/common.py`: `Stem.pool` changed from `nn.AvgPool2d(2, 2)` to `nn.MaxPool2d(2, 2)`
+
+**Re-distillation required:** Yes (teacher architecture changes)
+**Retraining required:** Yes
+**Screening protocol:** 100-epoch distillation + 100-epoch training × 3 seeds
+
+### Results — REVERTED (neutral)
+
+| Seed | I-AUROC (E5.5) | I-AUROC (MaxPool) | P-AUROC (E5.5) | P-AUROC (MaxPool) | PRO (E5.5) | PRO (MaxPool) |
+|------|----------------|-------------------|----------------|-------------------|------------|---------------|
+| 42   | 93.3           | **94.7** (+1.4)   | 97.6           | **98.0** (+0.4)   | 87.1       | **87.8** (+0.7) |
+| 123  | 94.9           | **95.4** (+0.5)   | 97.3           | **97.5** (+0.2)   | 85.8       | 85.7 (−0.1)    |
+| 7    | 94.5           | 92.8 (−1.7)      | 97.2           | 96.9 (−0.3)      | 87.2       | 84.0 (−3.2)    |
+| **Mean** | **94.2**   | 94.3 (+0.1)      | **97.4**       | 97.5 (+0.1)      | **86.7**   | 85.8 (−0.9)    |
+
+### Analysis
+
+- Seeds 42 and 123 improved modestly on I-AUROC and P-AUROC, but seed 7 regressed significantly across all metrics (I-AUROC −1.7pp, PRO −3.2pp).
+- Seed variance increased: I-AUROC span 2.6pp (was 1.6pp), PRO span 3.8pp (was 1.4pp). MaxPool makes training less stable.
+- Mean PRO dropped by 0.9pp — the opposite of the intended effect.
+
+### Conclusion
+
+**Neutral result.** MaxPool does not meet the >1pp PRO improvement threshold and increases seed variance. Code reverted to AvgPool. A-002 resolved — AvgPool is the better choice.
+
+### Code changes
+
+None retained — reverted via `git restore`.
+
+---
+
+## Optimization Roadmap (revised 2026-02-18, post E5.6)
 
 Full analysis and per-experiment specs: `docs/artifacts/exp5-findings.md`
 
@@ -267,6 +304,7 @@ Full analysis and per-experiment specs: `docs/artifacts/exp5-findings.md`
 | E5.1 | PRO num_thresholds 300→1000 | — | **Kept** — measurement correction (screening PRO 83.7→79.2) |
 | E5.2 | Bicubic anomaly map upsampling | — | Reverted — no effect (<0.1pp) |
 | E5.3 | Smoothing at embedding resolution | — | Reverted — no effect (<0.1pp) |
+| E5.6 | MaxPool vs AvgPool in stem | A-002 | Reverted — neutral (PRO −0.9pp, increased seed variance) |
 
 ### Phase A — Screening (100 epochs × 3 seeds)
 
@@ -285,7 +323,7 @@ All three tested. Only E5.1 retained. See `docs/artifacts/exp5-findings.md` for 
 | ID | Change | Assumption ID | Status |
 |----|--------|---------------|--------|
 | E5.5 | Fix cable augmentation (remove V-Flip, add Color Jitter) | A-017 | **Done — +2.5pp I-AUROC, +7.5pp PRO** |
-| E5.6 | MaxPool vs AvgPool in stem | A-002 | Pending |
+| E5.6 | MaxPool vs AvgPool in stem | A-002 | **Done — reverted (neutral, PRO −0.9pp)** |
 | E5.7 | Distillation target nearest-neighbor upsample | — | Pending |
 | E5.8 | Add BN to stem | A-005 | Pending |
 
@@ -293,9 +331,10 @@ All three tested. Only E5.1 retained. See `docs/artifacts/exp5-findings.md` for 
 
 1. ~~**E5.1–E5.3 together**~~ — done; E5.1 kept, E5.2/E5.3 no effect
 2. ~~**E5.5**~~ — done; +2.5pp I-AUROC, +7.5pp PRO (new screening baseline)
-3. **E5.6** — highest-impact architectural hypothesis ← NEXT
-4. **E5.4** — apply cosine LR to best config from above
-5. **E5.6+E5.7+E5.8 bundle** — only if E5.6 alone is inconclusive
+3. ~~**E5.6**~~ — done; neutral (PRO −0.9pp), reverted
+4. **E5.4** — cosine LR schedule ← NEXT
+5. **E5.7** — NN upsample distillation target
+6. **E5.8** — stem BatchNorm (only if E5.7 inconclusive)
 
 #### Deprioritized (not worth testing)
 

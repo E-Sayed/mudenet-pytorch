@@ -1,5 +1,5 @@
 # MuDeNet — MVTec AD Cable Configuration (Screening)
-# 100-epoch screening runs for fast ablation comparisons.
+# 100-epoch screening runs. Augmentations per Table A.16: H-Flip + Color Jitter.
 # Use configs/cable.yaml for full 500-epoch paper-comparable runs.
 
 model:
@@ -34,9 +34,9 @@ data:
   image_size: 256
   augmentations:
     horizontal_flip: true
-    vertical_flip: true
+    vertical_flip: false
     rotation: false
-    color_jitter: false
+    color_jitter: true
 
 inference:
   normalization: min_max

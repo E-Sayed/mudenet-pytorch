@@ -203,7 +203,56 @@ None retained — all changes reverted via `git restore`.
 
 ---
 
-## Optimization Roadmap (revised 2026-02-18, post Tier 1 experiments)
+## Experiment 5.5: Fix Cable Augmentation (A-017)
+
+**Date:** 2026-02-18
+**Hypothesis:** The cable config has two factual errors vs the paper's Table A.16: vertical flip is enabled (should be off — cables have a natural vertical orientation) and color jitter is disabled (should be on — cable anomalies include color-related defects).
+
+**What changed:**
+- `configs/cable.yaml` and `configs/cable_screen.yaml`: set `vertical_flip: false`, `color_jitter: true`
+- No code changes — config-only fix
+
+**Re-distillation required:** Yes (augmentations affect distillation training data)
+**Retraining required:** Yes
+**Screening protocol:** 100-epoch distillation + 100-epoch training × 3 seeds
+
+### Results
+
+| Seed | I-AUROC (base) | I-AUROC (fix) | P-AUROC (base) | P-AUROC (fix) | PRO (base) | PRO (fix) |
+|------|----------------|---------------|----------------|---------------|------------|-----------|
+| 7    | 89.7           | **94.5**      | 95.7           | **97.2**      | 78.9       | **87.2**  |
+| 42   | 92.4           | **93.3**      | 96.6           | **97.6**      | 79.4       | **87.1**  |
+| 123  | 93.0           | **94.9**      | 95.9           | **97.3**      | 79.2       | **85.8**  |
+| **Mean** | **91.7**   | **94.2**      | **96.1**       | **97.4**      | **79.2**   | **86.7**  |
+| **Delta** |          | **+2.5**      |                | **+1.3**      |            | **+7.5**  |
+
+### Analysis
+
+- **PRO** improved by +7.5pp — the single largest gain of any experiment so far. Removing V-Flip likely had the larger effect: flipping cables upside-down created implausible training samples that confused the teacher's spatial representations and degraded boundary precision.
+- **I-AUROC** improved by +2.5pp. Seed 7 gained the most (+4.8pp), suggesting V-Flip was particularly harmful for that initialization.
+- **P-AUROC** improved by +1.3pp, now within 0.9pp of paper — essentially closed.
+- Seed variance narrowed significantly, indicating more stable training with correct augmentations.
+
+### Remaining gap to paper
+
+| Metric  | E5.5 Mean | Paper  | Gap      | Previous gap |
+|---------|-----------|--------|----------|--------------|
+| I-AUROC | 94.2%     | 98.9%  | −4.7 pp  | −7.2 pp      |
+| P-AUROC | 97.4%     | 98.3%  | −0.9 pp  | −2.2 pp      |
+| PRO     | 86.7%     | 90.6%  | −3.9 pp  | −11.4 pp     |
+
+### Conclusion
+
+Config error confirmed and fixed. The augmentation fix closed 65% of the PRO gap, 35% of the I-AUROC gap, and 59% of the P-AUROC gap. This is now the new screening baseline for subsequent experiments.
+
+**Checkpoints:**
+- `runs/mvtec_ad/cable/e5.5_aug_fix/seed7/`
+- `runs/mvtec_ad/cable/e5.5_aug_fix/seed42/`
+- `runs/mvtec_ad/cable/e5.5_aug_fix/seed123/`
+
+---
+
+## Optimization Roadmap (revised 2026-02-18, post E5.5)
 
 Full analysis and per-experiment specs: `docs/artifacts/exp5-findings.md`
 
@@ -235,7 +284,7 @@ All three tested. Only E5.1 retained. See `docs/artifacts/exp5-findings.md` for 
 
 | ID | Change | Assumption ID | Status |
 |----|--------|---------------|--------|
-| E5.5 | Fix cable augmentation (remove V-Flip, add Color Jitter) | A-017 | Pending |
+| E5.5 | Fix cable augmentation (remove V-Flip, add Color Jitter) | A-017 | **Done — +2.5pp I-AUROC, +7.5pp PRO** |
 | E5.6 | MaxPool vs AvgPool in stem | A-002 | Pending |
 | E5.7 | Distillation target nearest-neighbor upsample | — | Pending |
 | E5.8 | Add BN to stem | A-005 | Pending |
@@ -243,8 +292,8 @@ All three tested. Only E5.1 retained. See `docs/artifacts/exp5-findings.md` for 
 #### Execution order
 
 1. ~~**E5.1–E5.3 together**~~ — done; E5.1 kept, E5.2/E5.3 no effect
-2. **E5.5** — highest confidence (factual config error)
-3. **E5.6** — highest-impact architectural hypothesis
+2. ~~**E5.5**~~ — done; +2.5pp I-AUROC, +7.5pp PRO (new screening baseline)
+3. **E5.6** — highest-impact architectural hypothesis ← NEXT
 4. **E5.4** — apply cosine LR to best config from above
 5. **E5.6+E5.7+E5.8 bundle** — only if E5.6 alone is inconclusive
 

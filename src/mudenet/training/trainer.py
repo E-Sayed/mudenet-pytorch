@@ -107,10 +107,19 @@ def train_end_to_end(
         lr=config.learning_rate,
     )
 
+    # Optional LR scheduler
+    scheduler = None
+    if config.lr_schedule == "cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=config.num_epochs, eta_min=config.lr_min,
+        )
+
     logger.info(
-        "Starting end-to-end training: %d epochs, lr=%.1e, batch_size=%d, seed=%d",
+        "Starting end-to-end training: %d epochs, lr=%.1e, lr_schedule=%s, "
+        "batch_size=%d, seed=%d",
         config.num_epochs,
         config.learning_rate,
+        config.lr_schedule,
         config.batch_size,
         config.seed,
     )
@@ -186,18 +195,23 @@ def train_end_to_end(
                 config.num_epochs,
             )
 
+        if scheduler is not None:
+            scheduler.step()
+
         avg_loss = epoch_loss / max(num_batches, 1)
         avg_l1 = epoch_l1 / max(num_batches, 1)
         avg_la = epoch_la / max(num_batches, 1)
         avg_l2 = epoch_l2 / max(num_batches, 1)
+        current_lr = optimizer.param_groups[0]["lr"]
         logger.info(
-            "Epoch %d/%d — avg loss: %.6f (L1=%.6f, LA=%.6f, L2=%.6f)",
+            "Epoch %d/%d — avg loss: %.6f (L1=%.6f, LA=%.6f, L2=%.6f) lr=%.2e",
             epoch + 1,
             config.num_epochs,
             avg_loss,
             avg_l1,
             avg_la,
             avg_l2,
+            current_lr,
         )
 
     # Save checkpoint with all four models and full metadata.
@@ -249,6 +263,8 @@ def train_end_to_end(
         "config": {
             "num_epochs": config.num_epochs,
             "learning_rate": config.learning_rate,
+            "lr_schedule": config.lr_schedule,
+            "lr_min": config.lr_min,
             "batch_size": config.batch_size,
             "seed": config.seed,
         },

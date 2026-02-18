@@ -30,3 +30,7 @@ Desktop.ini
 .venv/
 venv/
 env/
+
+# Excluded docs
+docs/architecture/decisions/
+docs/architecture/overview.md

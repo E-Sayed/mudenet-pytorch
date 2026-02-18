@@ -72,6 +72,8 @@ class TrainingConfig:
         batch_size: Batch size. Default 8.
         learning_rate: Learning rate for Adam optimizer. Default 1e-3.
         optimizer: Optimizer name. Default "adam".
+        lr_schedule: LR schedule type ("none" or "cosine"). Default "none".
+        lr_min: Minimum LR for cosine annealing. Default 1e-5.
         seed: Random seed for reproducibility. Default 42.
         deterministic: Enable deterministic operations. Default True.
         mixed_precision: Enable automatic mixed precision. Default False.
@@ -82,6 +84,8 @@ class TrainingConfig:
     batch_size: int = 8
     learning_rate: float = 1e-3
     optimizer: str = "adam"
+    lr_schedule: str = "none"
+    lr_min: float = 1e-5
     seed: int = 42
     deterministic: bool = True
     mixed_precision: bool = False
@@ -100,6 +104,17 @@ class TrainingConfig:
         if self.optimizer not in valid_optimizers:
             raise ValueError(
                 f"optimizer must be one of {valid_optimizers}, got '{self.optimizer}'"
+            )
+        valid_schedules = {"none", "cosine"}
+        if self.lr_schedule not in valid_schedules:
+            raise ValueError(
+                f"lr_schedule must be one of {valid_schedules}, got '{self.lr_schedule}'"
+            )
+        if self.lr_min < 0:
+            raise ValueError(f"lr_min must be >= 0, got {self.lr_min}")
+        if self.lr_min >= self.learning_rate:
+            raise ValueError(
+                f"lr_min ({self.lr_min}) must be less than learning_rate ({self.learning_rate})"
             )
 
 

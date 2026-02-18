@@ -305,6 +305,7 @@ Full analysis and per-experiment specs: `docs/artifacts/exp5-findings.md`
 | E5.2 | Bicubic anomaly map upsampling | — | Reverted — no effect (<0.1pp) |
 | E5.3 | Smoothing at embedding resolution | — | Reverted — no effect (<0.1pp) |
 | E5.6 | MaxPool vs AvgPool in stem | A-002 | Reverted — neutral (PRO −0.9pp, increased seed variance) |
+| E5.4 | Cosine LR schedule (end-to-end) | — | Marginal — I-AUROC +0.7pp, PRO flat; kept (low complexity) |
 
 ### Phase A — Screening (100 epochs × 3 seeds)
 
@@ -316,7 +317,7 @@ All three tested. Only E5.1 retained. See `docs/artifacts/exp5-findings.md` for 
 
 | ID | Change | Status |
 |----|--------|--------|
-| E5.4 | Cosine LR schedule (end-to-end only) | Pending |
+| E5.4 | Cosine LR schedule (end-to-end only) | **Done — marginal (+0.7pp I-AUROC, PRO flat)** |
 
 #### Tier 3: Full pipeline (re-distillation + retraining)
 
@@ -332,8 +333,8 @@ All three tested. Only E5.1 retained. See `docs/artifacts/exp5-findings.md` for 
 1. ~~**E5.1–E5.3 together**~~ — done; E5.1 kept, E5.2/E5.3 no effect
 2. ~~**E5.5**~~ — done; +2.5pp I-AUROC, +7.5pp PRO (new screening baseline)
 3. ~~**E5.6**~~ — done; neutral (PRO −0.9pp), reverted
-4. **E5.4** — cosine LR schedule ← NEXT
-5. **E5.7** — NN upsample distillation target
+4. ~~**E5.4**~~ — done; marginal (+0.7pp I-AUROC, PRO flat), kept
+5. **E5.7** — NN upsample distillation target ← NEXT
 6. **E5.8** — stem BatchNorm (only if E5.7 inconclusive)
 
 #### Deprioritized (not worth testing)

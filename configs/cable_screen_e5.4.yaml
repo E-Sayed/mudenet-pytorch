@@ -1,0 +1,50 @@
+# MuDeNet — MVTec AD Cable Configuration (E5.4: Cosine LR)
+# 100-epoch screening with cosine annealing LR schedule.
+# Based on E5.5 baseline (corrected augmentations).
+
+model:
+  num_channels: 128
+  latent_dim: 32
+  num_levels: 3
+  internal_channels: 64
+  block_depths: [1, 2, 2]
+  kernel_sizes: [3, 3, 5]
+  image_size: 256
+
+training:
+  num_epochs: 100
+  batch_size: 8
+  learning_rate: 0.001
+  optimizer: adam
+  lr_schedule: cosine
+  lr_min: 0.00001
+  seed: 42
+  deterministic: true
+  mixed_precision: false
+  num_workers: 4
+
+distillation:
+  backbone: wide_resnet50_2
+  num_epochs: 100
+  learning_rate: 0.001
+  batch_size: 8
+
+data:
+  dataset_type: mvtec_ad
+  data_root: data/mvtec_ad
+  category: cable
+  image_size: 256
+  augmentations:
+    horizontal_flip: true
+    vertical_flip: false
+    rotation: false
+    color_jitter: true
+
+inference:
+  normalization: min_max
+  validation_ratio: 0.1
+  smoothing_sigma: 4.0
+
+device: cuda
+output_dir: runs/mvtec_ad/cable/e5.4_cosine_lr
+tensorboard: false

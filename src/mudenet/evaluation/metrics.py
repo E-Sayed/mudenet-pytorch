@@ -91,7 +91,7 @@ def pro_score(
     masks: NDArray[np.integer],
     anomaly_maps: NDArray[np.floating],
     max_fpr: float = 0.3,
-    num_thresholds: int = 300,
+    num_thresholds: int = 1000,
 ) -> float:
     """Per-Region Overlap (PRO) score.
 
@@ -110,7 +110,7 @@ def pro_score(
         masks: Ground truth binary masks (N, H, W). 1 = anomalous.
         anomaly_maps: Predicted score maps (N, H, W).
         max_fpr: Maximum false positive rate for integration. Default 0.3.
-        num_thresholds: Number of thresholds to evaluate. Default 300.
+        num_thresholds: Number of thresholds to evaluate. Default 1000.
 
     Returns:
         Normalized area under the PRO curve up to max_fpr.
@@ -132,7 +132,7 @@ def spro_score(
     anomaly_maps: NDArray[np.floating],
     saturation_threshold: float = 1.0,
     max_fpr: float = 0.05,
-    num_thresholds: int = 300,
+    num_thresholds: int = 1000,
 ) -> float:
     """Saturated Per-Region Overlap (sPRO) score for MVTec LOCO (Sec. 4).
 
@@ -156,7 +156,7 @@ def spro_score(
         anomaly_maps: Predicted score maps (N, H, W).
         saturation_threshold: Maximum overlap value per component. Default 1.0.
         max_fpr: Maximum FPR for integration. Default 0.05.
-        num_thresholds: Number of thresholds. Default 300.
+        num_thresholds: Number of thresholds. Default 1000.
 
     Returns:
         Normalized area under the sPRO curve up to max_fpr, in [0, 1].

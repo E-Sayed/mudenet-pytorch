@@ -228,6 +228,8 @@ def score_batch(
     student2: TeacherNetwork,
     images: Tensor,
     norm_stats: NormalizationStats,
+    *,
+    clamp_scores: bool = False,
 ) -> Tensor:
     """Compute normalized anomaly map for a batch of images (Eqs. 9-12).
 
@@ -241,12 +243,6 @@ def score_batch(
     All models should already be on the correct device.
     Images should already be on the correct device.
 
-    Note:
-        Normalized scores are not clamped to [0, 1]. Test-time anomalous
-        scores can exceed the validation-set max, producing values > 1.0.
-        This does not affect ranking metrics (AUROC, PRO) which are
-        threshold-invariant.
-
     Args:
         teacher: Frozen teacher network.
         student1: Trained structural student S1.
@@ -254,6 +250,9 @@ def score_batch(
         student2: Trained logical student S2.
         images: Input images (B, 3, 256, 256) — already on correct device.
         norm_stats: Pre-computed normalization statistics.
+        clamp_scores: If True, clamp normalized per-branch scores to [0, 1]
+            before fusion. Prevents test-time outliers from one branch
+            dominating the fused map.
 
     Returns:
         Anomaly score map (B, H, W) — higher = more anomalous.
@@ -298,6 +297,9 @@ def score_batch(
                 norm_stats.logical_min[level],
                 norm_stats.logical_max[level],
             )
+            if clamp_scores:
+                struct_norm = struct_norm.clamp(0.0, 1.0)
+                logic_norm = logic_norm.clamp(0.0, 1.0)
             fused_levels.append(struct_norm + logic_norm)  # Eq. 11: (B, H, W)
 
         # Average across levels: S = (1/L) * sum_l S^l (Eq. 12)

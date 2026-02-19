@@ -71,6 +71,7 @@ class TrainingConfig:
         num_epochs: Number of training epochs. Default 500.
         batch_size: Batch size. Default 8.
         learning_rate: Learning rate for Adam optimizer. Default 1e-3.
+        weight_decay: L2 weight decay for optimizer. Default 0.0.
         optimizer: Optimizer name. Default "adam".
         lr_schedule: LR schedule type ("none" or "cosine"). Default "none".
         lr_min: Minimum LR for cosine annealing. Default 1e-5.
@@ -83,6 +84,7 @@ class TrainingConfig:
     num_epochs: int = 500
     batch_size: int = 8
     learning_rate: float = 1e-3
+    weight_decay: float = 0.0
     optimizer: str = "adam"
     lr_schedule: str = "none"
     lr_min: float = 1e-5
@@ -98,6 +100,8 @@ class TrainingConfig:
             raise ValueError(f"batch_size must be positive, got {self.batch_size}")
         if self.learning_rate <= 0:
             raise ValueError(f"learning_rate must be positive, got {self.learning_rate}")
+        if self.weight_decay < 0:
+            raise ValueError(f"weight_decay must be >= 0, got {self.weight_decay}")
         if self.num_workers < 0:
             raise ValueError(f"num_workers must be >= 0, got {self.num_workers}")
         valid_optimizers = {"adam"}
@@ -126,6 +130,7 @@ class DistillationConfig:
         backbone: Torchvision model name for feature extraction. Default "wide_resnet50_2".
         num_epochs: Number of distillation epochs. Default 500.
         learning_rate: Learning rate. Default 1e-3.
+        weight_decay: L2 weight decay for optimizer. Default 0.0.
         batch_size: Batch size. Default 8.
         seed: Random seed for reproducibility. Default 42.
         deterministic: Enable deterministic cuDNN operations. Default True.
@@ -134,6 +139,7 @@ class DistillationConfig:
     backbone: str = "wide_resnet50_2"
     num_epochs: int = 500
     learning_rate: float = 1e-3
+    weight_decay: float = 0.0
     batch_size: int = 8
     seed: int = 42
     deterministic: bool = True
@@ -146,6 +152,10 @@ class DistillationConfig:
         if self.learning_rate <= 0:
             raise ValueError(
                 f"learning_rate must be positive, got {self.learning_rate}"
+            )
+        if self.weight_decay < 0:
+            raise ValueError(
+                f"weight_decay must be >= 0, got {self.weight_decay}"
             )
 
 

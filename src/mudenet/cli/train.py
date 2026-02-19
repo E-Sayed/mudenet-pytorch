@@ -47,7 +47,6 @@ def add_train_parser(subparsers: argparse._SubParsersAction) -> None:  # type: i
         required=True,
         help="Path to distilled teacher checkpoint (teacher_distilled.pt)",
     )
-    # --category is required for training (dangerous to silently default)
     parser.set_defaults(func=run_train)
 
 
@@ -69,13 +68,6 @@ def run_train(args: argparse.Namespace) -> None:
         SystemExit: On file not found, missing keys, or runtime errors.
     """
     try:
-        if args.category is None:
-            logger.error(
-                "--category is required for training. "
-                "Specify the dataset category (e.g. --category bottle)."
-            )
-            sys.exit(1)
-
         config = load_config_from_subcommand(args, seed_target="training.seed")
 
         logger.info(

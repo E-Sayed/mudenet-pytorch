@@ -105,6 +105,7 @@ def train_end_to_end(
         + list(autoencoder.parameters())
         + list(student2.parameters()),
         lr=config.learning_rate,
+        weight_decay=config.weight_decay,
     )
 
     # Optional LR scheduler
@@ -115,10 +116,11 @@ def train_end_to_end(
         )
 
     logger.info(
-        "Starting end-to-end training: %d epochs, lr=%.1e, lr_schedule=%s, "
-        "batch_size=%d, seed=%d",
+        "Starting end-to-end training: %d epochs, lr=%.1e, wd=%.1e, "
+        "lr_schedule=%s, batch_size=%d, seed=%d",
         config.num_epochs,
         config.learning_rate,
+        config.weight_decay,
         config.lr_schedule,
         config.batch_size,
         config.seed,
@@ -263,6 +265,7 @@ def train_end_to_end(
         "config": {
             "num_epochs": config.num_epochs,
             "learning_rate": config.learning_rate,
+            "weight_decay": config.weight_decay,
             "lr_schedule": config.lr_schedule,
             "lr_min": config.lr_min,
             "batch_size": config.batch_size,

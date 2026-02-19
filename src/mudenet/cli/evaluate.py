@@ -75,6 +75,18 @@ def add_evaluate_parser(subparsers: argparse._SubParsersAction) -> None:  # type
             "Only used when --visualize is set."
         ),
     )
+    parser.add_argument(
+        "--clamp-scores",
+        action="store_true",
+        default=False,
+        help="Clamp normalized per-branch scores to [0, 1] before fusion",
+    )
+    parser.add_argument(
+        "--norm-full-train",
+        action="store_true",
+        default=False,
+        help="Compute normalization stats on the full training set instead of a validation split",
+    )
     parser.set_defaults(func=run_evaluate)
 
 
@@ -140,6 +152,47 @@ def _create_validation_loader(
     )
 
 
+def _create_full_train_loader(
+    config: Config,
+) -> DataLoader:  # type: ignore[type-arg]
+    """Create a dataloader over the full training set for normalization statistics.
+
+    Uses eval transforms (no augmentations) on all training images.
+
+    Args:
+        config: Full configuration.
+
+    Returns:
+        DataLoader for the full training set.
+    """
+    from mudenet.data.transforms import get_eval_transform
+
+    dataset_cls = get_dataset_class(config.data.dataset_type)
+    eval_transform = get_eval_transform(config.data)
+
+    train_dataset = dataset_cls(
+        data_root=config.data.data_root,
+        category=config.data.category,
+        split="train",
+        transform=eval_transform,
+        target_transform=None,
+    )
+
+    logger.info(
+        "Full training set: %d samples for normalization",
+        len(train_dataset),
+    )
+
+    return create_dataloader(
+        train_dataset,
+        batch_size=config.training.batch_size,
+        shuffle=False,
+        num_workers=config.training.num_workers,
+        seed=config.training.seed,
+        pin_memory=(config.device != "cpu"),
+    )
+
+
 def run_evaluate(args: argparse.Namespace) -> None:
     """Evaluate trained model on test set.
 
@@ -160,13 +213,6 @@ def run_evaluate(args: argparse.Namespace) -> None:
         SystemExit: On file not found, missing keys, or runtime errors.
     """
     try:
-        if args.category is None:
-            logger.error(
-                "--category is required for evaluation. "
-                "Specify the dataset category (e.g. --category bottle)."
-            )
-            sys.exit(1)
-
         config = load_config_from_subcommand(args, seed_target="training.seed")
 
         # CLI override for smoothing sigma (quick experimentation)
@@ -235,15 +281,19 @@ def run_evaluate(args: argparse.Namespace) -> None:
             shuffle=False,
         )
 
-        # Compute normalization stats on validation split of training data
-        logger.info("Computing normalization statistics on validation split...")
-        val_loader = _create_validation_loader(config)
+        # Compute normalization stats on training data
+        if args.norm_full_train:
+            logger.info("Computing normalization statistics on FULL training set...")
+            norm_loader = _create_full_train_loader(config)
+        else:
+            logger.info("Computing normalization statistics on validation split...")
+            norm_loader = _create_validation_loader(config)
         norm_stats = compute_normalization_stats(
             teacher,
             student1,
             autoencoder,
             student2,
-            val_loader,
+            norm_loader,
             device=config.device,
         )
         logger.info("Normalization stats computed successfully")
@@ -267,6 +317,7 @@ def run_evaluate(args: argparse.Namespace) -> None:
                 anomaly_map = score_batch(
                     teacher, student1, autoencoder, student2,
                     images, norm_stats,
+                    clamp_scores=args.clamp_scores,
                 )  # (B, 128, 128)
 
                 # Upsample anomaly map to input resolution so it matches

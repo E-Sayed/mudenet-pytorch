@@ -110,12 +110,17 @@ def train_distillation(
     teacher.train()
 
     # Adam optimizer on teacher parameters only
-    optimizer = torch.optim.Adam(teacher.parameters(), lr=config.learning_rate)
+    optimizer = torch.optim.Adam(
+        teacher.parameters(),
+        lr=config.learning_rate,
+        weight_decay=config.weight_decay,
+    )
 
     logger.info(
-        "Starting distillation: %d epochs, lr=%.1e, batch_size=%d, seed=%d",
+        "Starting distillation: %d epochs, lr=%.1e, wd=%.1e, batch_size=%d, seed=%d",
         config.num_epochs,
         config.learning_rate,
+        config.weight_decay,
         config.batch_size,
         config.seed,
     )
@@ -191,6 +196,7 @@ def train_distillation(
             "backbone": config.backbone,
             "num_epochs": config.num_epochs,
             "learning_rate": config.learning_rate,
+            "weight_decay": config.weight_decay,
             "batch_size": config.batch_size,
             "seed": config.seed,
         },

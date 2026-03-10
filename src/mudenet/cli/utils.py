@@ -9,9 +9,13 @@ from __future__ import annotations
 
 import argparse
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from torch.utils.data import DataLoader, Dataset
+
+if TYPE_CHECKING:
+    from mudenet.models.autoencoder import Autoencoder
+    from mudenet.models.teacher import TeacherNetwork
 
 from mudenet.config.loading import load_config
 from mudenet.config.schema import Config, DataConfig
@@ -141,7 +145,7 @@ def get_dataset_class(dataset_type: str) -> type[Dataset]:  # type: ignore[type-
     return _DATASET_CLASSES[dataset_type]
 
 
-def create_teacher_from_config(config: Config) -> object:
+def create_teacher_from_config(config: Config) -> TeacherNetwork:
     """Create a TeacherNetwork from config.
 
     Uses deferred import to preserve fast ``--help`` behavior.
@@ -163,7 +167,7 @@ def create_teacher_from_config(config: Config) -> object:
     )
 
 
-def create_autoencoder_from_config(config: Config) -> object:
+def create_autoencoder_from_config(config: Config) -> Autoencoder:
     """Create an Autoencoder from config.
 
     Uses deferred import to preserve fast ``--help`` behavior.
